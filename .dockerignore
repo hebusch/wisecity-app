@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+
+# Frontend build artifacts & deps
+frontend/node_modules/
+frontend/dist/
+
+# Database
+gps.duckdb
+gps.duckdb.wal
+*.duckdb
+*.duckdb.wal
+
+# Secrets
+.env
+
+# macOS / tooling
+.DS_Store
+.claude/

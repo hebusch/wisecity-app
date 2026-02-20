@@ -1,0 +1,103 @@
+/* ─── Reset ─────────────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ─── Design Tokens ─────────────────────────────────────── */
+:root {
+  /* Accent */
+  --accent:        #00c2cb;
+  --accent-dim:    rgba(0, 194, 203, 0.12);
+  --accent-glow:   rgba(0, 194, 203, 0.25);
+
+  /* Status */
+  --moving:        #34d399;
+  --moving-dim:    rgba(52, 211, 153, 0.14);
+  --idle:          #6b7280;
+  --idle-dim:      rgba(107, 114, 128, 0.14);
+  --warn:          #f59e0b;
+  --warn-dim:      rgba(245, 158, 11, 0.14);
+  --danger:        #f87171;
+
+  /* Surfaces – Light */
+  --bg:            #eef2f7;
+  --surface:       rgba(255, 255, 255, 0.88);
+  --surface-hi:    rgba(255, 255, 255, 0.96);
+  --border:        rgba(15, 30, 60, 0.09);
+  --border-accent: rgba(0, 194, 203, 0.35);
+
+  /* Text – Light */
+  --txt:           #0f1e3c;
+  --txt-dim:       rgba(15, 30, 60, 0.48);
+  --txt-inv:       #ffffff;
+
+  /* Typography */
+  --f-body:        'Plus Jakarta Sans', system-ui, sans-serif;
+  --f-display:     'Barlow Condensed', sans-serif;
+  --f-mono:        'IBM Plex Mono', 'Courier New', monospace;
+
+  /* Elevation */
+  --shadow-sm:     0 1px 6px rgba(0, 0, 0, 0.08), 0 0 0 1px rgba(0,0,0,0.04);
+  --shadow-md:     0 4px 20px rgba(0, 0, 0, 0.12), 0 1px 4px rgba(0,0,0,0.06);
+  --shadow-lg:     0 8px 40px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0,0,0,0.08);
+
+  /* Radii */
+  --r-sm:          8px;
+  --r-md:          14px;
+  --r-lg:          20px;
+  --r-pill:        999px;
+
+  /* Blur */
+  --blur:          blur(16px) saturate(180%);
+}
+
+/* ─── Dark Mode Tokens ──────────────────────────────────── */
+html.dark {
+  color-scheme: dark;
+
+  --bg:            #080d14;
+  --surface:       rgba(10, 17, 30, 0.90);
+  --surface-hi:    rgba(13, 22, 38, 0.97);
+  --border:        rgba(255, 255, 255, 0.07);
+  --border-accent: rgba(0, 194, 203, 0.30);
+
+  --txt:           #dde8f5;
+  --txt-dim:       rgba(221, 232, 245, 0.42);
+
+  --shadow-sm:     0 1px 6px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255,255,255,0.04);
+  --shadow-md:     0 4px 20px rgba(0, 0, 0, 0.55), 0 1px 4px rgba(0,0,0,0.3);
+  --shadow-lg:     0 8px 40px rgba(0, 0, 0, 0.70), 0 2px 8px rgba(0,0,0,0.4);
+}
+
+/* ─── Base ──────────────────────────────────────────────── */
+html, body, #app {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  font-family: var(--f-body);
+  color: var(--txt);
+  background: var(--bg);
+}
+
+/* ─── Leaflet Z-index fixes ─────────────────────────────── */
+.leaflet-pane         { z-index: 1; }
+.leaflet-top,
+.leaflet-bottom       { z-index: 2; }
+.leaflet-control      { z-index: 2; }
+
+/* ─── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: var(--r-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-dim);
+}

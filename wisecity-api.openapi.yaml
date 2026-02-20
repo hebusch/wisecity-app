@@ -1,0 +1,517 @@
+openapi: 3.0.3
+info:
+  title: WiseCity GPS API
+  description: Unofficial OpenAPI spec for the WiseCity GPS Tracking API (mobile).
+  version: 1.0.0
+
+servers:
+  - url: https://wisecity-api-movil.kausana.cl
+    description: Mobile API (default)
+  - url: https://bknprod.wisecityapp.com
+    description: Production backend
+  - url: https://api-mux.kausana.cl
+    description: API Mux
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+
+  schemas:
+    Location:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: float
+        longitude:
+          type: number
+          format: float
+
+    Vehicle:
+      type: object
+      properties:
+        id:
+          type: integer
+        plate:
+          type: string
+        brand:
+          type: string
+        model:
+          type: string
+        year:
+          type: integer
+        brand_id:
+          type: integer
+        model_id:
+          type: integer
+
+    Plan:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        amount:
+          type: number
+        month_amount:
+          type: number
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: integer
+        plan_name:
+          type: string
+        subscription_finish_date:
+          type: string
+        status:
+          type: integer
+        status_text:
+          type: string
+        is_valid:
+          type: boolean
+        plan:
+          $ref: '#/components/schemas/Plan'
+
+    Company:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        logo_image:
+          type: string
+
+    Device:
+      type: object
+      properties:
+        id:
+          type: string
+        name_device:
+          type: string
+        status:
+          type: integer
+        status_name:
+          type: string
+        speed:
+          type: number
+        is_owner:
+          type: boolean
+        locked:
+          type: boolean
+        locked_in_process:
+          type: boolean
+        has_lock:
+          type: boolean
+        subscription_active:
+          type: boolean
+        last_update_location:
+          type: string
+        last_gps_location_id:
+          type: integer
+        is_bluetooth_device:
+          type: boolean
+        is_tandem:
+          type: boolean
+        type_device_id:
+          type: integer
+        point_location:
+          $ref: '#/components/schemas/Location'
+        vehicle:
+          $ref: '#/components/schemas/Vehicle'
+        subscription:
+          $ref: '#/components/schemas/Subscription'
+        company:
+          $ref: '#/components/schemas/Company'
+
+    Alert:
+      type: object
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+        message:
+          type: string
+        device_id:
+          type: string
+        timestamp:
+          type: string
+        read:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        detail:
+          type: string
+
+security:
+  - basicAuth: []
+
+paths:
+
+  # ─── USER ────────────────────────────────────────────────────────────────────
+
+  /user/api/login/:
+    post:
+      summary: Login
+      description: Authenticate and retrieve user info.
+      tags: [User]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  example: tu@email.com
+                password:
+                  type: string
+                  example: tu_password
+      responses:
+        '200':
+          description: Login successful
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ─── DEVICES ─────────────────────────────────────────────────────────────────
+
+  /device/api/gps_device_list/:
+    get:
+      summary: List all GPS devices
+      description: Returns all GPS devices associated with the authenticated user.
+      tags: [Devices]
+      responses:
+        '200':
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  gps_devices:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Device'
+        '401':
+          description: Unauthorized
+
+  /device/api/gps_device_screen/{device_id}/:
+    get:
+      summary: Get device screen data
+      description: Returns detailed screen data for a specific device. May include available commands/actions.
+      tags: [Devices]
+      parameters:
+        - name: device_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "869131070364420"
+      responses:
+        '200':
+          description: Device screen data
+        '401':
+          description: Unauthorized
+        '404':
+          description: Device not found
+
+  /device/api/v2/gps_device_user_map/:
+    get:
+      summary: Get devices for map view
+      description: Returns devices optimized for map display (v2).
+      tags: [Devices]
+      responses:
+        '200':
+          description: Map device data
+        '401':
+          description: Unauthorized
+
+  /device/api/send_device_command/:
+    post:
+      summary: Send command to device
+      description: |
+        Sends a command string to the device. Known values to try:
+        `lock`, `unlock`, `refresh`, `update`, `gps_update`.
+      tags: [Devices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, command]
+              properties:
+                device_id:
+                  type: string
+                  example: "869131070364420"
+                command:
+                  type: string
+                  example: "refresh"
+      responses:
+        '200':
+          description: Command sent
+        '401':
+          description: Unauthorized
+
+  /device/api/do_device_action/2:
+    post:
+      summary: Perform device action
+      description: |
+        Executes an action on a device. Known values to try:
+        `refresh`, `update_location`, `lock`, `unlock`.
+      tags: [Devices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id, action]
+              properties:
+                device_id:
+                  type: string
+                  example: "869131070364420"
+                action:
+                  type: string
+                  example: "refresh"
+      responses:
+        '200':
+          description: Action performed
+        '401':
+          description: Unauthorized
+
+  /device/api/lock_device/:
+    post:
+      summary: Lock a device
+      tags: [Devices]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_id]
+              properties:
+                device_id:
+                  type: string
+                  example: "869131070364420"
+      responses:
+        '200':
+          description: Device locked
+        '401':
+          description: Unauthorized
+
+  /device/api/get_gps_icons/:
+    get:
+      summary: Get available GPS icons
+      tags: [Devices]
+      responses:
+        '200':
+          description: List of GPS icons
+
+  /device/api/get_device_use_types/:
+    get:
+      summary: Get device use types
+      tags: [Devices]
+      responses:
+        '200':
+          description: List of device use types
+
+  # ─── ALERTS ──────────────────────────────────────────────────────────────────
+
+  /alert/api/alert_history_user/:
+    get:
+      summary: Get alert history
+      description: Returns all historical alerts for the authenticated user.
+      tags: [Alerts]
+      responses:
+        '200':
+          description: Alert history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Alert'
+        '401':
+          description: Unauthorized
+
+  /alert/api/alert_list_screen/2:
+    get:
+      summary: Get alert list screen
+      tags: [Alerts]
+      responses:
+        '200':
+          description: Alert list
+
+  /alert/api/alert-type-app/:
+    get:
+      summary: Get alert types
+      description: Returns all available alert types.
+      tags: [Alerts]
+      responses:
+        '200':
+          description: Alert types list
+
+  /alert/api/alert_type_config/:
+    get:
+      summary: Get alert type configuration
+      tags: [Alerts]
+      responses:
+        '200':
+          description: Alert type configuration
+
+  /alert/api/rule_list_screen/:
+    get:
+      summary: Get alert rules
+      tags: [Alerts]
+      responses:
+        '200':
+          description: Alert rules list
+
+  /alert/api/rule_add_form/:
+    post:
+      summary: Create alert rule
+      tags: [Alerts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Rule configuration (fields depend on alert type)
+              example:
+                device_id: "869131070364420"
+                alert_type: "speed"
+                threshold: 120
+      responses:
+        '200':
+          description: Rule created
+        '401':
+          description: Unauthorized
+
+  /alert/api/rule_delete/:
+    post:
+      summary: Delete alert rule
+      tags: [Alerts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rule_id]
+              properties:
+                rule_id:
+                  type: string
+      responses:
+        '200':
+          description: Rule deleted
+        '401':
+          description: Unauthorized
+
+  /alert/api/security_enviroment_screen/:
+    get:
+      summary: Get security environment screen
+      tags: [Alerts]
+      responses:
+        '200':
+          description: Security environment data
+
+  # ─── SUBSCRIPTIONS ───────────────────────────────────────────────────────────
+
+  /subscription/api/subscription_detail_screen/{subscription_id}:
+    get:
+      summary: Get subscription details
+      tags: [Subscriptions]
+      parameters:
+        - name: subscription_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subscription detail
+        '401':
+          description: Unauthorized
+        '404':
+          description: Subscription not found
+
+  # ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
+
+  /notification/api/v2/push-notification-list/:
+    get:
+      summary: Get push notifications
+      tags: [Notifications]
+      responses:
+        '200':
+          description: Notifications list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      type: object
+        '401':
+          description: Unauthorized
+
+  /notification/api/push_notification_view_individual/:
+    post:
+      summary: Mark notification as viewed
+      tags: [Notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notification_id]
+              properties:
+                notification_id:
+                  type: string
+      responses:
+        '200':
+          description: Notification marked as viewed
+        '401':
+          description: Unauthorized
+
+  # ─── COMPANY ─────────────────────────────────────────────────────────────────
+
+  /company/api/company_services_screen/2:
+    get:
+      summary: Get company services
+      tags: [Company]
+      responses:
+        '200':
+          description: Company services list
+
+  /company/api/store_main_screen/:
+    get:
+      summary: Get store main screen
+      tags: [Company]
+      responses:
+        '200':
+          description: Store screen data
