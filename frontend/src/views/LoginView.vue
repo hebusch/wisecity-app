@@ -481,46 +481,18 @@ async function handleLogin() {
 }
 
 /* ── Browser autofill ───────────────────────────────────────────
-   color-scheme tells iOS Safari to render native autofill UI in
-   the correct mode. The box-shadow trick overrides the browser's
-   autofill background as a fallback (must be per-mode).        */
+   color-scheme is the correct modern approach for iOS Safari.
+   It tells the browser to render its native UI (incl. autofill)
+   in light or dark mode. No box-shadow overrides needed.       */
+.form__input {
+  color-scheme: light;
+}
 @media (prefers-color-scheme: dark) {
   .form__input { color-scheme: dark; }
 }
-:global(.dark) .form__input { color-scheme: dark; }
-
-/* Light mode (default) */
-.form__input:-webkit-autofill,
-.form__input:-webkit-autofill:hover,
-.form__input:-webkit-autofill:focus,
-.form__input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #eef2f7 inset !important;
-  -webkit-text-fill-color: #0f1e3c !important;
-  caret-color: #0f1e3c;
-  transition: background-color 9999s ease-in-out 0s;
-}
-
-/* Dark mode — via OS preference */
-@media (prefers-color-scheme: dark) {
-  .form__input:-webkit-autofill,
-  .form__input:-webkit-autofill:hover,
-  .form__input:-webkit-autofill:focus,
-  .form__input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 1000px #080d14 inset !important;
-    -webkit-text-fill-color: #dde8f5 !important;
-    caret-color: #dde8f5;
-  }
-}
-
-/* Dark mode — via manual toggle (.dark on <html>) */
-:global(.dark) .form__input:-webkit-autofill,
-:global(.dark) .form__input:-webkit-autofill:hover,
-:global(.dark) .form__input:-webkit-autofill:focus,
-:global(.dark) .form__input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #080d14 inset !important;
-  -webkit-text-fill-color: #dde8f5 !important;
-  caret-color: #dde8f5;
-}
+/* Manual dark toggle overrides OS preference in both directions */
+:global(.dark) .form__input    { color-scheme: dark; }
+:global(:not(.dark)) .form__input { color-scheme: light; }
 
 .form__input:focus {
   border-color: var(--accent);
