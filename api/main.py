@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -16,7 +15,7 @@ from fastapi.staticfiles import StaticFiles
 load_dotenv()
 
 from api import database
-from api.routes import auth, devices, locations, trips, stats
+from api.routes import auth, devices, locations, passkey, trips, stats
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
@@ -27,21 +26,28 @@ log = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 async def run_collector() -> None:
-    """Poll WiseCity API every 60 s and persist locations to DuckDB."""
+    """Poll WiseCity API every 60 s and persist locations to DuckDB.
+
+    Credentials come from the first active session in memory — no env vars needed.
+    If no user is logged in the cycle is skipped silently.
+    """
     from wisecity import WiseCityClient
     from wisecity.exceptions import WiseCityError
+    from api.routes.auth import _sessions
 
-    email = os.getenv("WISECITY_EMAIL")
-    password = os.getenv("WISECITY_PASSWORD")
-    if not email or not password:
-        log.error("WISECITY_EMAIL / WISECITY_PASSWORD not set — collector disabled")
-        return
-
-    client = WiseCityClient(email=email, password=password)
     log.info("Collector started (polling every 60 s)")
 
     while True:
+        # Grab credentials from any active session
+        creds = next(iter(_sessions.values()), None)
+        if creds is None:
+            log.debug("Collector: no active session, skipping poll")
+            await asyncio.sleep(60)
+            continue
+
+        email, password = creds
         try:
+            client = WiseCityClient(email=email, password=password)
             devices_list = await asyncio.to_thread(client.devices.list)
             saved = 0
             for device in devices_list:
@@ -101,6 +107,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(passkey.router, prefix="/api")
 app.include_router(devices.router, prefix="/api")
 app.include_router(locations.router, prefix="/api")
 app.include_router(trips.router, prefix="/api")

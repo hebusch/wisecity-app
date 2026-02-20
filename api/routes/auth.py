@@ -51,6 +51,7 @@ class LoginRequest(BaseModel):
 
 class LoginResponse(BaseModel):
     token: str
+    has_passkey: bool
 
 
 @router.post("/auth/login", response_model=LoginResponse)
@@ -68,9 +69,10 @@ async def login(body: LoginRequest) -> LoginResponse:
     except Exception:
         raise HTTPException(status_code=502, detail="Error conectando con WiseCity")
 
+    from api import database
     token = secrets.token_urlsafe(32)   # 256 bits of randomness
     _sessions[token] = (body.email, body.password)
-    return LoginResponse(token=token)
+    return LoginResponse(token=token, has_passkey=database.user_has_passkey(body.email))
 
 
 @router.post("/auth/logout")

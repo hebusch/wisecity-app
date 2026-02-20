@@ -23,6 +23,7 @@ frontend/dist/
 .env
 .env.local
 .env.*.local
+.secret_key
 
 # ── macOS ─────────────────────────────────────────────────────
 .DS_Store

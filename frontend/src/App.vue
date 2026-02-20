@@ -1,6 +1,12 @@
 <template>
   <!-- Login screen -->
-  <LoginView v-if="!isAuthenticated" />
+  <LoginView v-if="!isAuthenticated && !awaitingPasskeySetup" />
+
+  <!-- Intermediate passkey setup (after password login, before map) -->
+  <PasskeySetupView
+    v-else-if="awaitingPasskeySetup"
+    :email="currentEmail ?? ''"
+  />
 
   <!-- Main app -->
   <div v-else class="app-shell">
@@ -19,6 +25,8 @@
       :dark-mode="darkMode"
       :device-count="devices.length"
       :has-trip-route="!!tripRoute"
+      :email="currentEmail ?? ''"
+      :has-passkey="hasPasskey"
       @refresh="fetchDevices"
       @toggle-dark="toggleDark"
       @toggle-dashboard="showDashboard = !showDashboard"
@@ -50,6 +58,7 @@
       @close="showDeviceSelector = false"
       @select="onDeviceSelected"
     />
+
   </div>
 </template>
 
@@ -59,6 +68,7 @@ import { useAuth } from './composables/useAuth'
 import { useDevices } from './composables/useDevices'
 import { useTrips, type TripLocation } from './composables/useTrips'
 import LoginView from './views/LoginView.vue'
+import PasskeySetupView from './views/PasskeySetupView.vue'
 import MapView from './components/MapView.vue'
 import TopBar from './components/TopBar.vue'
 import BottomBar from './components/BottomBar.vue'
@@ -66,7 +76,10 @@ import SpeedLegend from './components/SpeedLegend.vue'
 import Dashboard from './components/Dashboard.vue'
 import DeviceSelector from './components/DeviceSelector.vue'
 
-const { isAuthenticated, sessionExpired, logout } = useAuth()
+const {
+  isAuthenticated, awaitingPasskeySetup, sessionExpired, logout,
+  currentEmail, hasPasskey,
+} = useAuth()
 const { fetchTripRoute } = useTrips()
 const { devices, loading, fetchDevices } = useDevices()
 
@@ -140,6 +153,7 @@ async function handleLogout() {
   selectedDeviceId.value = null
   await logout()
 }
+
 </script>
 
 <style scoped>

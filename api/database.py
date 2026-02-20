@@ -44,6 +44,22 @@ def _init_schema(conn: duckdb.DuckDBPyConnection) -> None:
 
         CREATE UNIQUE INDEX IF NOT EXISTS idx_locations_unique
             ON locations(device_id, timestamp);
+
+        CREATE TABLE IF NOT EXISTS passkey_users (
+            user_id         TEXT PRIMARY KEY,
+            enc_email       TEXT NOT NULL,
+            enc_password    TEXT NOT NULL,
+            created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS passkey_credentials (
+            credential_id   TEXT PRIMARY KEY,
+            user_id         TEXT NOT NULL,
+            public_key      TEXT NOT NULL,
+            sign_count      INTEGER DEFAULT 0,
+            transports      TEXT DEFAULT '[]',
+            created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
 
@@ -208,3 +224,86 @@ def query_locations(device_id: str, from_ts: str, to_ts: str) -> list[dict]:
         cols = ["id", "device_id", "plate", "latitude", "longitude",
                 "speed", "status_name", "timestamp"]
         return [dict(zip(cols, row)) for row in rows]
+
+
+# ── Passkey helpers ───────────────────────────────────────────────────────────
+
+def user_has_passkey(user_id: str) -> bool:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT 1 FROM passkey_credentials WHERE user_id = ? LIMIT 1",
+            [user_id],
+        ).fetchone()
+        return row is not None
+
+
+def upsert_passkey_user(user_id: str, enc_email: str, enc_password: str) -> None:
+    with db() as conn:
+        conn.execute(
+            """
+            INSERT INTO passkey_users (user_id, enc_email, enc_password)
+            VALUES (?, ?, ?)
+            ON CONFLICT (user_id) DO UPDATE
+                SET enc_email = excluded.enc_email,
+                    enc_password = excluded.enc_password
+            """,
+            [user_id, enc_email, enc_password],
+        )
+
+
+def save_passkey_credential(
+    credential_id: str,
+    user_id: str,
+    public_key: str,
+    sign_count: int,
+    transports: str,
+) -> None:
+    with db() as conn:
+        conn.execute(
+            """
+            INSERT INTO passkey_credentials
+                (credential_id, user_id, public_key, sign_count, transports)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT (credential_id) DO UPDATE
+                SET sign_count = excluded.sign_count
+            """,
+            [credential_id, user_id, public_key, sign_count, transports],
+        )
+
+
+def get_passkey_credential(credential_id: str) -> dict | None:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT credential_id, user_id, public_key, sign_count "
+            "FROM passkey_credentials WHERE credential_id = ?",
+            [credential_id],
+        ).fetchone()
+        if row is None:
+            return None
+        return dict(zip(["credential_id", "user_id", "public_key", "sign_count"], row))
+
+
+def get_passkey_user(user_id: str) -> dict | None:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT user_id, enc_email, enc_password "
+            "FROM passkey_users WHERE user_id = ?",
+            [user_id],
+        ).fetchone()
+        if row is None:
+            return None
+        return dict(zip(["user_id", "enc_email", "enc_password"], row))
+
+
+def update_passkey_sign_count(credential_id: str, new_count: int) -> None:
+    with db() as conn:
+        conn.execute(
+            "UPDATE passkey_credentials SET sign_count = ? WHERE credential_id = ?",
+            [new_count, credential_id],
+        )
+
+
+def delete_passkey_for_user(user_id: str) -> None:
+    with db() as conn:
+        conn.execute("DELETE FROM passkey_credentials WHERE user_id = ?", [user_id])
+        conn.execute("DELETE FROM passkey_users WHERE user_id = ?", [user_id])

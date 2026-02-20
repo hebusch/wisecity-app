@@ -23,10 +23,26 @@
         </div>
       </div>
 
-      <!-- Form -->
-      <form class="form" @submit.prevent="handleLogin">
+      <!-- ── Single form — email always visible ── -->
+      <div class="form">
+
+        <!-- Email field: active in step 'email', locked in steps 2a/2b -->
         <div class="form__group">
-          <label class="form__label" for="email">Correo electrónico</label>
+          <div class="form__label-row">
+            <label class="form__label" for="email">Correo electrónico</label>
+            <button
+              v-if="step !== 'email'"
+              type="button"
+              class="form__back-btn"
+              @click="backToEmail"
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M19 12H5M12 5l-7 7 7 7"/>
+              </svg>
+              Cambiar
+            </button>
+          </div>
           <div class="form__input-wrap">
             <svg class="form__icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -38,98 +54,215 @@
               v-model="email"
               type="email"
               class="form__input"
+              :class="{ 'form__input--locked': step !== 'email' }"
               placeholder="tu@email.com"
               autocomplete="username"
-              required
-              :disabled="loading"
+              :disabled="checking || step !== 'email'"
+              @keydown.enter.prevent="step === 'email' && handleEmailSubmit()"
             />
           </div>
         </div>
 
-        <div class="form__group">
-          <label class="form__label" for="password">Contraseña</label>
-          <div class="form__input-wrap">
-            <svg class="form__icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <rect x="3" y="11" width="18" height="11" rx="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+        <!-- Step 1: continue -->
+        <template v-if="step === 'email'">
+          <p v-if="errorMsg" class="form__error">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
             </svg>
-            <input
-              id="password"
-              v-model="password"
-              :type="showPassword ? 'text' : 'password'"
-              class="form__input"
-              placeholder="••••••••"
-              autocomplete="current-password"
-              required
-              :disabled="loading"
-            />
-            <button
-              type="button"
-              class="form__eye"
-              @click="showPassword = !showPassword"
-              :title="showPassword ? 'Ocultar' : 'Mostrar'"
-            >
-              <svg v-if="!showPassword" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
-                <circle cx="12" cy="12" r="3"/>
+            {{ errorMsg }}
+          </p>
+          <button type="button" class="form__submit" :disabled="checking || !email" @click="handleEmailSubmit">
+            <span v-if="checking" class="submit-spinner">
+              <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
               </svg>
-              <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round">
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
-                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
-                <line x1="1" y1="1" x2="23" y2="23"/>
+              Verificando…
+            </span>
+            <span v-else>
+              Continuar
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
               </svg>
-            </button>
+            </span>
+          </button>
+        </template>
+
+        <!-- Step 2a: passkey -->
+        <template v-else-if="step === 'passkey'">
+          <p v-if="errorMsg" class="form__error">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            {{ errorMsg }}
+          </p>
+          <button class="passkey-btn" :disabled="loading" @click="handlePasskeyLogin">
+            <span v-if="loading" class="submit-spinner">
+              <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+              </svg>
+              Verificando…
+            </span>
+            <span v-else class="passkey-btn__inner">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+              Entrar con Passkey
+            </span>
+          </button>
+          <button type="button" class="use-password-btn" @click="step = 'password'">
+            Usar contraseña en su lugar
+          </button>
+        </template>
+
+        <!-- Step 2b: password -->
+        <template v-else-if="step === 'password'">
+          <div class="form__group">
+            <label class="form__label" for="password">Contraseña</label>
+            <div class="form__input-wrap">
+              <svg class="form__icon" width="15" height="15" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <rect x="3" y="11" width="18" height="11" rx="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input
+                id="password"
+                v-model="password"
+                :type="showPassword ? 'text' : 'password'"
+                class="form__input"
+                placeholder="••••••••"
+                autocomplete="current-password"
+                required
+                :disabled="loading"
+                ref="passwordInput"
+                @keydown.enter.prevent="handleLogin"
+              />
+              <button
+                type="button"
+                class="form__eye"
+                @click="showPassword = !showPassword"
+                :title="showPassword ? 'Ocultar' : 'Mostrar'"
+              >
+                <svg v-if="!showPassword" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+                  <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              </button>
+            </div>
           </div>
-        </div>
 
-        <p v-if="errorMsg" class="form__error">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          {{ errorMsg }}
-        </p>
+          <p v-if="errorMsg" class="form__error">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/>
+              <line x1="12" y1="16" x2="12.01" y2="16"/>
+            </svg>
+            {{ errorMsg }}
+          </p>
 
-        <button type="submit" class="form__submit" :disabled="loading">
-          <span v-if="loading" class="submit-spinner">
-            <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
-            </svg>
-            Conectando…
-          </span>
-          <span v-else>
-            Iniciar sesión
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
-          </span>
-        </button>
-      </form>
+          <button type="button" class="form__submit" :disabled="loading || !password" @click="handleLogin">
+            <span v-if="loading" class="submit-spinner">
+              <svg class="spin" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+              </svg>
+              Conectando…
+            </span>
+            <span v-else>
+              Iniciar sesión
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <path d="M5 12h14M12 5l7 7-7 7"/>
+              </svg>
+            </span>
+          </button>
+        </template>
+
+      </div>
 
       <p class="login-note">
-        Tus credenciales nunca se almacenan en el dispositivo. Solo se guarda un token de sesión cifrado que se elimina al cerrar la pestaña.
+        Tus credenciales nunca se almacenan en el dispositivo. Solo se guarda un token de sesión que se elimina al cerrar la pestaña.
       </p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, nextTick } from 'vue'
 import { useAuth } from '../composables/useAuth'
 
-const { login } = useAuth()
+const { login, loginWithPasskey, passkeySupported } = useAuth()
 
-const email = ref('')
-const password = ref('')
-const showPassword = ref(false)
-const loading = ref(false)
-const errorMsg = ref('')
+type Step = 'email' | 'passkey' | 'password'
+
+const step          = ref<Step>('email')
+const email         = ref('')
+const password      = ref('')
+const showPassword  = ref(false)
+const loading       = ref(false)
+const checking      = ref(false)
+const errorMsg      = ref('')
+const passwordInput = ref<HTMLInputElement | null>(null)
+
+// ── Step 1: check if user has a passkey ──────────────────────────────────────
+
+async function handleEmailSubmit() {
+  errorMsg.value = ''
+  checking.value = true
+  try {
+    if (passkeySupported.value) {
+      const res = await fetch(`/api/auth/passkey/check?email=${encodeURIComponent(email.value)}`)
+      const { has_passkey } = await res.json()
+      step.value = has_passkey ? 'passkey' : 'password'
+    } else {
+      step.value = 'password'
+    }
+    if (step.value === 'password') {
+      await nextTick()
+      passwordInput.value?.focus()
+    }
+  } catch {
+    step.value = 'password'
+  } finally {
+    checking.value = false
+  }
+}
+
+function backToEmail() {
+  step.value = 'email'
+  password.value = ''
+  errorMsg.value = ''
+}
+
+// ── Step 2a: passkey login ───────────────────────────────────────────────────
+
+async function handlePasskeyLogin() {
+  errorMsg.value = ''
+  loading.value = true
+  try {
+    await loginWithPasskey()
+  } catch (e) {
+    errorMsg.value = e instanceof Error ? e.message : 'Error de autenticación'
+  } finally {
+    loading.value = false
+  }
+}
+
+// ── Step 2b: password login ──────────────────────────────────────────────────
 
 async function handleLogin() {
   errorMsg.value = ''
@@ -259,6 +392,42 @@ async function handleLogin() {
   font-weight: 500;
 }
 
+/* ── Label row with back button ─────────────────────────────── */
+.form__label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.form__back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--f-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--txt-dim);
+  padding: 2px 6px;
+  border-radius: var(--r-sm);
+  transition: color 0.15s ease, background 0.15s ease;
+  letter-spacing: 0.02em;
+}
+.form__back-btn:hover {
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+/* Locked email field (step 2) — same size, just visually muted */
+.form__input--locked {
+  color: var(--txt-dim);
+  background: var(--surface);
+  cursor: default;
+  opacity: 1;
+}
+
 /* ── Form ───────────────────────────────────────────────────── */
 .form {
   display: flex;
@@ -311,12 +480,54 @@ async function handleLogin() {
   opacity: 0.6;
 }
 
+/* ── Browser autofill ───────────────────────────────────────────
+   color-scheme tells iOS Safari to render native autofill UI in
+   the correct mode. The box-shadow trick overrides the browser's
+   autofill background as a fallback (must be per-mode).        */
+@media (prefers-color-scheme: dark) {
+  .form__input { color-scheme: dark; }
+}
+:global(.dark) .form__input { color-scheme: dark; }
+
+/* Light mode (default) */
+.form__input:-webkit-autofill,
+.form__input:-webkit-autofill:hover,
+.form__input:-webkit-autofill:focus,
+.form__input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #eef2f7 inset !important;
+  -webkit-text-fill-color: #0f1e3c !important;
+  caret-color: #0f1e3c;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* Dark mode — via OS preference */
+@media (prefers-color-scheme: dark) {
+  .form__input:-webkit-autofill,
+  .form__input:-webkit-autofill:hover,
+  .form__input:-webkit-autofill:focus,
+  .form__input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px #080d14 inset !important;
+    -webkit-text-fill-color: #dde8f5 !important;
+    caret-color: #dde8f5;
+  }
+}
+
+/* Dark mode — via manual toggle (.dark on <html>) */
+:global(.dark) .form__input:-webkit-autofill,
+:global(.dark) .form__input:-webkit-autofill:hover,
+:global(.dark) .form__input:-webkit-autofill:focus,
+:global(.dark) .form__input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #080d14 inset !important;
+  -webkit-text-fill-color: #dde8f5 !important;
+  caret-color: #dde8f5;
+}
+
 .form__input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
-.form__input:disabled {
+.form__input:disabled:not(.form__input--locked) {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -376,25 +587,61 @@ async function handleLogin() {
   background: color-mix(in srgb, var(--accent) 85%, white);
   transform: translateY(-1px);
 }
+.form__submit:active:not(:disabled) { transform: translateY(0); }
+.form__submit:disabled { opacity: 0.65; cursor: not-allowed; }
 
-.form__submit:active:not(:disabled) {
-  transform: translateY(0);
+/* ── Passkey button ─────────────────────────────────────────── */
+.passkey-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--accent-dim);
+  border: 1.5px solid var(--border-accent);
+  border-radius: var(--r-md);
+  font-family: var(--f-body);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.15s ease, transform 0.12s ease, box-shadow 0.15s ease;
 }
-
-.form__submit:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
+@media (hover: hover) {
+  .passkey-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+    transform: translateY(-1px);
+  }
 }
+.passkey-btn:disabled { opacity: 0.65; cursor: not-allowed; }
+.passkey-btn__inner { display: flex; align-items: center; gap: 8px; }
 
+/* ── Use password fallback link ─────────────────────────────── */
+.use-password-btn {
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: var(--txt-dim);
+  cursor: pointer;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 4px;
+  transition: color 0.15s ease;
+}
+.use-password-btn:hover { color: var(--accent); }
+
+/* ── Spinner ────────────────────────────────────────────────── */
 .submit-spinner {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.spin {
-  animation: spin 0.9s linear infinite;
-}
+.spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Security note ──────────────────────────────────────────── */
