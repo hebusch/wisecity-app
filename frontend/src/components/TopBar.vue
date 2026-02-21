@@ -289,7 +289,7 @@ const { deletePasskey } = useAuth()
 const statusClass = computed(() => {
   const s = (props.statusName ?? '').toLowerCase()
   if (s.includes('detenido') || s.includes('parking') || s.includes('stop') || s.includes('reposo')) return 'badge--idle'
-  if (s.includes('movimiento') || s.includes('moving') || s.includes('en ruta')) return 'badge--moving'
+  if (s.includes('movimiento') || s.includes('moving') || s.includes('en ruta') || s.includes('activo')) return 'badge--moving'
   return 'badge--unknown'
 })
 

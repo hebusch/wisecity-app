@@ -91,14 +91,14 @@ function select(device: Device) {
 
 function isMoving(device: Device): boolean {
   const s = (device.status_name ?? '').toLowerCase()
-  return s.includes('movimiento') || s.includes('moving') || s.includes('en ruta')
+  return s.includes('movimiento') || s.includes('moving') || s.includes('en ruta') || s.includes('activo')
 }
 
 function statusLabel(device: Device): string {
   if (!device.status_name) return 'Desconocido'
   const s = device.status_name.toLowerCase()
   if (s.includes('detenido') || s.includes('parking') || s.includes('stop') || s.includes('reposo')) return 'Reposo'
-  if (s.includes('movimiento') || s.includes('moving') || s.includes('en ruta')) return 'Activo'
+  if (s.includes('movimiento') || s.includes('moving') || s.includes('en ruta') || s.includes('activo')) return 'Activo'
   return 'Desconocido'
 }
 
@@ -106,7 +106,7 @@ function statusClass(device: Device): string {
   if (!device.status_name) return 'status--unknown'
   const s = device.status_name.toLowerCase()
   if (s.includes('detenido') || s.includes('parking') || s.includes('stop') || s.includes('reposo')) return 'status--idle'
-  if (s.includes('movimiento') || s.includes('moving') || s.includes('en ruta')) return 'status--moving'
+  if (s.includes('movimiento') || s.includes('moving') || s.includes('en ruta') || s.includes('activo')) return 'status--moving'
   return 'status--unknown'
 }
 
