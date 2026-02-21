@@ -59,6 +59,8 @@ function fmtCoord(n: number | null | undefined): string {
 let routeLayer: L.LayerGroup | null = null
 let accuracyCircle: L.Circle | null = null
 let accuracyPulse: L.Circle | null = null
+let routeGeneration = 0
+let matchController: AbortController | null = null
 
 // ── Selected device ──────────────────────────────────────────
 
@@ -153,48 +155,100 @@ function removeAccuracyCircle() {
 
 // ── Trip route polyline ──────────────────────────────────────
 
-function drawTripRoute(locations: TripLocation[]) {
+async function fetchMapMatchedRoute(locations: TripLocation[]): Promise<L.LatLngExpression[] | null> {
+  // Route API accepts up to 25 waypoints; sample evenly keeping start and end
+  const MAX = 25
+  let pts = locations
+  if (pts.length > MAX) {
+    const step = Math.ceil((pts.length - 2) / (MAX - 2))
+    const sampled: TripLocation[] = [pts[0]]
+    for (let i = step; i < pts.length - 1; i += step) sampled.push(pts[i])
+    sampled.push(pts[pts.length - 1])
+    pts = sampled
+  }
+
+  matchController?.abort()
+  matchController = new AbortController()
+
+  const coords = pts.map(p => `${p.longitude},${p.latitude}`).join(';')
+
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`
+    const res = await fetch(url, { signal: matchController.signal })
+    if (!res.ok) {
+      console.warn('[OSRM] route failed:', res.status)
+      return null
+    }
+    const data = await res.json()
+    if (data.code !== 'Ok' || !data.routes?.length) {
+      console.warn('[OSRM] no route:', data.code, data.message)
+      return null
+    }
+
+    return (data.routes[0].geometry.coordinates as [number, number][])
+      .map(([lng, lat]) => [lat, lng] as L.LatLngExpression)
+  } catch (e) {
+    if ((e as Error).name !== 'AbortError') console.warn('[OSRM] fetch error:', e)
+    return null
+  }
+}
+
+function nearestSpeed(lat: number, lng: number, locations: TripLocation[]): number {
+  let minDist = Infinity
+  let speed = 0
+  for (const loc of locations) {
+    const d = (loc.latitude - lat) ** 2 + (loc.longitude - lng) ** 2
+    if (d < minDist) { minDist = d; speed = loc.speed }
+  }
+  return speed
+}
+
+async function drawTripRoute(locations: TripLocation[]) {
+  const gen = ++routeGeneration
   if (!map) return
   clearRouteLayer()
   if (locations.length < 2) return
 
   routeLayer = L.layerGroup().addTo(map)
 
-  // Draw colored segments (color = speed of destination point)
-  for (let i = 1; i < locations.length; i++) {
-    const prev = locations[i - 1]
-    const curr = locations[i]
-    L.polyline(
-      [[prev.latitude, prev.longitude], [curr.latitude, curr.longitude]],
-      {
-        color: speedColor(curr.speed),
+  const matched = await fetchMapMatchedRoute(locations)
+  if (gen !== routeGeneration) return  // a newer route was requested while waiting
+
+  if (matched) {
+    // Draw road-following route with interpolated speed colors
+    for (let i = 1; i < matched.length; i++) {
+      const [lat, lng] = matched[i] as [number, number]
+      L.polyline([matched[i - 1], matched[i]], {
+        color: speedColor(nearestSpeed(lat, lng, locations)),
         weight: 5,
         opacity: 0.85,
         lineCap: 'round',
         lineJoin: 'round',
-      },
-    ).addTo(routeLayer)
+      }).addTo(routeLayer!)
+    }
+  } else {
+    // Fallback: straight lines between GPS points
+    for (let i = 1; i < locations.length; i++) {
+      const prev = locations[i - 1]
+      const curr = locations[i]
+      L.polyline(
+        [[prev.latitude, prev.longitude], [curr.latitude, curr.longitude]],
+        { color: speedColor(curr.speed), weight: 5, opacity: 0.85, lineCap: 'round', lineJoin: 'round' },
+      ).addTo(routeLayer!)
+    }
   }
 
   // Start marker (green)
   const first = locations[0]
   L.circleMarker([first.latitude, first.longitude], {
-    radius: 8,
-    color: '#fff',
-    weight: 2.5,
-    fillColor: '#22c55e',
-    fillOpacity: 1,
-  }).bindTooltip('Inicio', { direction: 'top' }).addTo(routeLayer)
+    radius: 8, color: '#fff', weight: 2.5, fillColor: '#22c55e', fillOpacity: 1,
+  }).bindTooltip('Inicio', { direction: 'top' }).addTo(routeLayer!)
 
   // End marker (red)
   const last = locations[locations.length - 1]
   L.circleMarker([last.latitude, last.longitude], {
-    radius: 8,
-    color: '#fff',
-    weight: 2.5,
-    fillColor: '#ef4444',
-    fillOpacity: 1,
-  }).bindTooltip('Fin', { direction: 'top' }).addTo(routeLayer)
+    radius: 8, color: '#fff', weight: 2.5, fillColor: '#ef4444', fillOpacity: 1,
+  }).bindTooltip('Fin', { direction: 'top' }).addTo(routeLayer!)
 
   // Fit map to the route
   const bounds = L.latLngBounds(locations.map(l => [l.latitude, l.longitude] as L.LatLngExpression))
@@ -202,6 +256,7 @@ function drawTripRoute(locations: TripLocation[]) {
 }
 
 function clearRouteLayer() {
+  matchController?.abort()
   routeLayer?.remove()
   routeLayer = null
 }
