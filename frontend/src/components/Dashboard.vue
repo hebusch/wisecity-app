@@ -75,7 +75,9 @@
         <!-- Trips -->
         <div class="section-header">
           <span class="section-title">Viajes recientes</span>
-          <span class="section-count">{{ trips.length }}</span>
+          <span v-if="trips.length > 0" class="section-count">
+            Mostrando {{ pagedTrips.length }} de {{ trips.length }}
+          </span>
         </div>
 
         <div v-if="trips.length === 0" class="no-data">
@@ -87,7 +89,7 @@
           Sin viajes registrados
         </div>
         <div v-else class="trips-list">
-          <div v-for="trip in trips" :key="trip.trip_num" class="trip-item" @click="onTripClick(trip)" title="Ver ruta en el mapa">
+          <div v-for="trip in pagedTrips" :key="trip.trip_num" class="trip-item" @click="onTripClick(trip)" title="Ver ruta en el mapa">
             <div class="trip-item__accent" />
             <div class="trip-item__content">
               <div class="trip-item__main">
@@ -101,16 +103,30 @@
             </div>
           </div>
         </div>
+
+        <!-- Pagination: pinned to bottom of panel -->
+        <div v-if="totalPages > 1" class="pagination">
+          <button class="page-btn" :disabled="page === 0" @click="page--">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="m15 18-6-6 6-6"/>
+            </svg>
+          </button>
+          <span class="page-info">{{ page + 1 }} / {{ totalPages }}</span>
+          <button class="page-btn" :disabled="page === totalPages - 1" @click="page++">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
+          </button>
+        </div>
       </template>
     </div>
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useTrips } from '../composables/useTrips'
-import type { Stats, Trip } from '../composables/useTrips'
-// Trip is used in onTripClick — keep this import
+import type { Trip } from '../composables/useTrips'
 
 const props = defineProps<{
   visible: boolean
@@ -134,10 +150,15 @@ function onTripClick(trip: Trip) {
 
 const { trips, stats, loading, error, fetchData } = useTrips()
 
+const PAGE_SIZE = 8
+const page = ref(0)
+const totalPages = computed(() => Math.ceil(trips.value.length / PAGE_SIZE))
+const pagedTrips = computed(() => trips.value.slice(page.value * PAGE_SIZE, (page.value + 1) * PAGE_SIZE))
+
 watch(
   () => [props.visible, props.deviceId] as [boolean, string | null],
   ([visible, deviceId]) => {
-    if (visible && deviceId) fetchData(deviceId)
+    if (visible && deviceId) { page.value = 0; fetchData(deviceId) }
   },
   { immediate: true },
 )
@@ -399,14 +420,66 @@ h2 {
 /* ── Trips List ──────────────────────────────────────────── */
 .trips-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
-  padding: 0 14px 20px;
+  padding: 0 14px;
+  padding-bottom: 60px;
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
+/* ── Pagination ──────────────────────────────────────────── */
+.pagination {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 14px 16px;
+  background: var(--surface-hi);
+  border-top: 1px solid var(--border);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+}
+
+.page-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--txt-dim);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.page-btn:hover:not(:disabled) {
+  background: var(--accent-dim);
+  border-color: var(--border-accent);
+  color: var(--accent);
+}
+.page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.page-info {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--txt-dim);
+  min-width: 48px;
+  text-align: center;
+}
+
 .trip-item {
+  flex-shrink: 0;
   display: flex;
   align-items: stretch;
   background: var(--bg);
