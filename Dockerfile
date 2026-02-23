@@ -22,8 +22,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy API source
+# Copy API source and seed script
 COPY api/ ./api/
+COPY seed_users.py ./
 
 # Copy built frontend from Stage 1
 COPY --from=frontend-builder /build/frontend/dist ./frontend/dist

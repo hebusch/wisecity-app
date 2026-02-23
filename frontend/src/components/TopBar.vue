@@ -96,6 +96,14 @@
           </div>
           <div class="um-sep" />
         </template>
+        <button class="um-row" @click="openChangePwdModal">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+            stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+          Cambiar contraseña
+        </button>
         <button v-if="hasPasskey" class="um-row um-row--danger" @click="openDeleteModal">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -131,6 +139,24 @@
             </div>
             <div class="um-sep" />
           </template>
+
+          <button class="um-sheet-row" @click="openChangePwdModal">
+            <div class="um-sheet-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+            </div>
+            <div class="um-sheet-body">
+              <span class="um-sheet-body__label">Cambiar contraseña</span>
+              <span class="um-sheet-body__sub">Actualiza tu contraseña de acceso</span>
+            </div>
+            <svg class="um-sheet-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="m9 18 6-6-6-6"/>
+            </svg>
+          </button>
 
           <button v-if="hasPasskey" class="um-sheet-row um-sheet-row--danger" @click="openDeleteModal">
             <div class="um-sheet-icon um-sheet-icon--danger">
@@ -254,6 +280,106 @@
       </div>
     </Transition>
 
+    <!-- ── Change password modal ────────────────────────────── -->
+    <Transition name="modal">
+      <div v-if="showChangePwdModal" class="del-backdrop" @click.self="!changePwdSuccess && closeChangePwdModal()">
+        <div class="del-card">
+          <Transition name="del-swap" mode="out-in">
+
+            <!-- Normal: form -->
+            <div v-if="!changePwdSuccess" key="form" class="del-form">
+              <div class="del-icon cp-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              </div>
+              <h3 class="del-title">Cambiar contraseña</h3>
+              <p class="del-sub">Ingresa tu contraseña actual y la nueva contraseña.</p>
+              <input
+                ref="changePwdCurrentRef"
+                class="del-input"
+                type="password"
+                placeholder="Contraseña actual"
+                v-model="changePwdCurrent"
+                :disabled="changePwdLoading"
+                @keydown.enter="changePwdNewRef?.focus()"
+              />
+              <input
+                ref="changePwdNewRef"
+                class="del-input"
+                type="password"
+                placeholder="Nueva contraseña"
+                v-model="changePwdNew"
+                :disabled="changePwdLoading"
+                @keydown.enter="changePwdConfirmRef?.focus()"
+              />
+              <input
+                ref="changePwdConfirmRef"
+                class="del-input"
+                type="password"
+                placeholder="Confirmar nueva contraseña"
+                v-model="changePwdConfirm"
+                :disabled="changePwdLoading"
+                @keydown.enter="submitChangePwd"
+              />
+              <p v-if="changePwdErr" class="del-error">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                  stroke-width="2.5" stroke-linecap="round">
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+                {{ changePwdErr }}
+              </p>
+              <div class="del-actions">
+                <button class="del-btn del-btn--ghost" :disabled="changePwdLoading" @click="closeChangePwdModal">
+                  Cancelar
+                </button>
+                <button
+                  class="del-btn del-btn--primary"
+                  :disabled="changePwdLoading || !changePwdCurrent || !changePwdNew || !changePwdConfirm"
+                  @click="submitChangePwd"
+                >
+                  <svg v-if="changePwdLoading" class="spin" width="13" height="13" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <path d="M21 12a9 9 0 1 1-6.22-8.56"/>
+                  </svg>
+                  {{ changePwdLoading ? 'Guardando…' : 'Guardar' }}
+                </button>
+              </div>
+            </div>
+
+            <!-- Success: animated check -->
+            <div v-else key="success" class="del-success">
+              <div class="del-success-ring">
+                <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
+                  <circle
+                    class="ds-circle"
+                    cx="32" cy="32" r="27"
+                    stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-dasharray="170" stroke-dashoffset="170"
+                  />
+                  <polyline
+                    class="ds-check"
+                    points="19,33 28,42 45,22"
+                    stroke="currentColor" stroke-width="3.5"
+                    stroke-linecap="round" stroke-linejoin="round"
+                    stroke-dasharray="46" stroke-dashoffset="46"
+                  />
+                </svg>
+              </div>
+              <p class="del-success-title">Contraseña actualizada</p>
+              <p class="del-success-sub">Tu nueva contraseña está activa</p>
+            </div>
+
+          </Transition>
+        </div>
+      </div>
+    </Transition>
+
   </Teleport>
 </template>
 
@@ -282,7 +408,7 @@ const emit = defineEmits<{
   logout: []
 }>()
 
-const { deletePasskey } = useAuth()
+const { deletePasskey, changePassword } = useAuth()
 
 // ── Status badge ─────────────────────────────────────────────────────────────
 
@@ -332,6 +458,57 @@ const emailInitial = computed(() => (props.email?.[0] ?? '?').toUpperCase())
 function doLogout() {
   closeMenu()
   emit('logout')
+}
+
+// ── Change password modal ─────────────────────────────────────────────────────
+
+const showChangePwdModal  = ref(false)
+const changePwdSuccess    = ref(false)
+const changePwdCurrent    = ref('')
+const changePwdNew        = ref('')
+const changePwdConfirm    = ref('')
+const changePwdErr        = ref('')
+const changePwdLoading    = ref(false)
+const changePwdCurrentRef = ref<HTMLInputElement | null>(null)
+const changePwdNewRef     = ref<HTMLInputElement | null>(null)
+const changePwdConfirmRef = ref<HTMLInputElement | null>(null)
+
+function openChangePwdModal() {
+  closeMenu()
+  changePwdCurrent.value = ''
+  changePwdNew.value = ''
+  changePwdConfirm.value = ''
+  changePwdErr.value = ''
+  changePwdSuccess.value = false
+  showChangePwdModal.value = true
+  nextTick(() => changePwdCurrentRef.value?.focus())
+}
+
+function closeChangePwdModal() {
+  if (changePwdLoading.value || changePwdSuccess.value) return
+  showChangePwdModal.value = false
+}
+
+async function submitChangePwd() {
+  if (!changePwdCurrent.value || !changePwdNew.value || !changePwdConfirm.value || changePwdLoading.value) return
+  if (changePwdNew.value !== changePwdConfirm.value) {
+    changePwdErr.value = 'Las contraseñas no coinciden'
+    return
+  }
+  changePwdErr.value = ''
+  changePwdLoading.value = true
+  try {
+    await changePassword(changePwdCurrent.value, changePwdNew.value)
+    changePwdSuccess.value = true
+    setTimeout(() => {
+      showChangePwdModal.value = false
+      changePwdSuccess.value = false
+    }, 1800)
+  } catch (e) {
+    changePwdErr.value = e instanceof Error ? e.message : 'Error al cambiar contraseña'
+  } finally {
+    changePwdLoading.value = false
+  }
 }
 
 // ── Delete passkey modal ──────────────────────────────────────────────────────
@@ -993,6 +1170,23 @@ async function confirmDelete() {
   background: var(--danger);
   color: #fff;
   border-color: transparent;
+}
+
+.del-btn--primary {
+  background: var(--accent-dim);
+  border: 1px solid var(--border-accent);
+  color: var(--accent);
+}
+.del-btn--primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: #fff;
+  border-color: transparent;
+}
+
+.cp-icon {
+  background: var(--accent-dim);
+  border-color: var(--border-accent);
+  color: var(--accent);
 }
 
 /* Modal transition */

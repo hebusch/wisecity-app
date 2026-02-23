@@ -29,8 +29,9 @@ from webauthn.helpers.structs import (
     UserVerificationRequirement,
 )
 
+import bcrypt
+
 from api import database
-from api.crypto import decrypt, encrypt
 from api.routes.auth import _sessions, get_auth
 
 router = APIRouter()
@@ -87,11 +88,10 @@ class DeletePasskeyRequest(BaseModel):
 async def passkey_register_begin(
     body: RegBeginRequest,
     request: Request,
-    creds: tuple[str, str] = Depends(get_auth),
+    email: str = Depends(get_auth),
 ) -> dict:
     """Start WebAuthn registration (requires active session)."""
     rp_id, _ = _rp_config(request)
-    email, _ = creds
     options = generate_registration_options(
         rp_id=rp_id,
         rp_name=RP_NAME,
@@ -111,11 +111,10 @@ async def passkey_register_begin(
 async def passkey_register_complete(
     body: RegCompleteRequest,
     request: Request,
-    creds: tuple[str, str] = Depends(get_auth),
+    email: str = Depends(get_auth),
 ) -> dict:
-    """Complete registration and persist credential + encrypted WiseCity creds."""
+    """Complete registration and persist WebAuthn credential."""
     rp_id, origin = _rp_config(request)
-    email, password = creds
     challenge = _reg_challenges.pop(email, None)
     if challenge is None:
         raise HTTPException(400, "No hay registro pendiente para este usuario")
@@ -140,12 +139,6 @@ async def passkey_register_complete(
     except Exception as exc:
         raise HTTPException(400, f"Registro inválido: {exc}") from exc
 
-    # Persist encrypted WiseCity credentials tied to this user
-    database.upsert_passkey_user(
-        user_id=email,
-        enc_email=encrypt(email),
-        enc_password=encrypt(password),
-    )
     # Persist the WebAuthn credential
     database.save_passkey_credential(
         credential_id=bytes_to_base64url(verification.credential_id),
@@ -221,12 +214,8 @@ async def passkey_login_complete(body: AuthCompleteRequest, request: Request) ->
 
     database.update_passkey_sign_count(raw["id"], verification.new_sign_count)
 
-    user = database.get_passkey_user(stored["user_id"])
-    if not user:
-        raise HTTPException(500, "Usuario no encontrado")
-
     token = secrets.token_urlsafe(32)
-    _sessions[token] = (decrypt(user["enc_email"]), decrypt(user["enc_password"]))
+    _sessions[token] = stored["user_id"]  # user_id == email
     return {"token": token}
 
 
@@ -235,11 +224,11 @@ async def passkey_login_complete(body: AuthCompleteRequest, request: Request) ->
 @router.delete("/auth/passkey")
 async def delete_passkey(
     body: DeletePasskeyRequest,
-    creds: tuple[str, str] = Depends(get_auth),
+    email: str = Depends(get_auth),
 ) -> dict:
     """Delete passkey for the authenticated user after password verification."""
-    email, session_password = creds
-    if body.password != session_password:
+    user = database.get_local_user_by_email(email)
+    if not user or not bcrypt.checkpw(body.password.encode(), user["password_hash"].encode()):
         raise HTTPException(401, "Contraseña incorrecta")
     database.delete_passkey_for_user(email)
     return {"ok": True}

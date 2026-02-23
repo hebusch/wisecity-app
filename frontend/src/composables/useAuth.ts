@@ -194,6 +194,20 @@ export function useAuth() {
     _hasPasskey.value = true
   }
 
+  // ── Change password ──────────────────────────────────────────────────────────
+
+  async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+    const res = await authFetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ current_password: currentPassword, new_password: newPassword }),
+    })
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      throw new Error((data as { detail?: string }).detail ?? 'Error al cambiar contraseña')
+    }
+  }
+
   // ── Delete passkey ───────────────────────────────────────────────────────────
 
   async function deletePasskey(password: string): Promise<void> {
@@ -257,6 +271,7 @@ export function useAuth() {
     confirmLogin,
     loginWithPasskey,
     registerPasskey,
+    changePassword,
     deletePasskey,
     logout,
     authFetch,

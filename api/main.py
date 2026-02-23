@@ -28,24 +28,22 @@ log = logging.getLogger(__name__)
 async def run_collector() -> None:
     """Poll WiseCity API every 60 s and persist locations to DuckDB.
 
-    Credentials come from the first active session in memory — no env vars needed.
-    If no user is logged in the cycle is skipped silently.
+    Credentials come from environment variables (WISECITY_EMAIL / WISECITY_PASSWORD).
     """
+    import os
     from wisecity import WiseCityClient
     from wisecity.exceptions import WiseCityError
-    from api.routes.auth import _sessions
 
     log.info("Collector started (polling every 60 s)")
 
     while True:
-        # Grab credentials from any active session
-        creds = next(iter(_sessions.values()), None)
-        if creds is None:
-            log.debug("Collector: no active session, skipping poll")
+        email = os.environ.get("WISECITY_EMAIL")
+        password = os.environ.get("WISECITY_PASSWORD")
+        if not email or not password:
+            log.debug("Collector: WISECITY_EMAIL/PASSWORD not set, skipping poll")
             await asyncio.sleep(60)
             continue
 
-        email, password = creds
         try:
             client = WiseCityClient(email=email, password=password)
             devices_list = await asyncio.to_thread(client.devices.list)
@@ -81,8 +79,9 @@ async def run_collector() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Ensure schema exists before anything else
+    # Ensure schema exists and seed default users
     database.get_connection()
+    import seed_users  # noqa: F401 — runs seed on import, idempotent
 
     task = asyncio.create_task(run_collector())
     yield

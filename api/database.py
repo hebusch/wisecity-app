@@ -60,6 +60,13 @@ def _init_schema(conn: duckdb.DuckDBPyConnection) -> None:
             transports      TEXT DEFAULT '[]',
             created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
         );
+
+        CREATE TABLE IF NOT EXISTS local_users (
+            user_id         TEXT PRIMARY KEY DEFAULT gen_random_uuid()::TEXT,
+            email           TEXT UNIQUE NOT NULL,
+            password_hash   TEXT NOT NULL,
+            created_at      TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+        );
     """)
 
 
@@ -307,3 +314,32 @@ def delete_passkey_for_user(user_id: str) -> None:
     with db() as conn:
         conn.execute("DELETE FROM passkey_credentials WHERE user_id = ?", [user_id])
         conn.execute("DELETE FROM passkey_users WHERE user_id = ?", [user_id])
+
+
+# ── Local user helpers ────────────────────────────────────────────────────────
+
+def create_local_user(email: str, password_hash: str) -> None:
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO local_users (email, password_hash) VALUES (?, ?) ON CONFLICT (email) DO NOTHING",
+            [email, password_hash],
+        )
+
+
+def get_local_user_by_email(email: str) -> dict | None:
+    with db() as conn:
+        row = conn.execute(
+            "SELECT user_id, email, password_hash FROM local_users WHERE email = ?",
+            [email],
+        ).fetchone()
+        if row is None:
+            return None
+        return dict(zip(["user_id", "email", "password_hash"], row))
+
+
+def update_local_user_password(email: str, new_hash: str) -> None:
+    with db() as conn:
+        conn.execute(
+            "UPDATE local_users SET password_hash = ? WHERE email = ?",
+            [new_hash, email],
+        )
